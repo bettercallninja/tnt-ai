@@ -4,12 +4,12 @@ import subprocess
 import tempfile
 from typing import Optional
 
+import httpx
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import whisper
 from settings import settings
-from translate_nllb import OfflineTranslator, LANG_NAME_TO_CODE
 
 app = FastAPI(title="Offline STT + Translate")
 app.add_middleware(
@@ -22,12 +22,9 @@ whisper_model = whisper.load_model(
     settings.WHISPER_MODEL,
     download_root=settings.WHISPER_MODEL_DIR,
 )
-# NOTE: The SPM models should match the NLLB conversion you used.
-translator = OfflineTranslator(
-    ct2_dir=settings.CT2_MODEL_DIR,
-    spm_src_path=settings.SPM_SRC,
-    spm_tgt_path=settings.SPM_TGT,
-)
+
+# HTTP client for LibreTranslate API
+http_client = httpx.AsyncClient(timeout=30.0)
 
 class TranscribeTranslateResp(BaseModel):
     transcript: str
@@ -38,11 +35,20 @@ SUPPORTED_LANG_CODES = {
     "ar": "Arabic", "en": "English", "fa": "Persian", "tr": "Turkish",
 }
 
-BCP_TO_NLLB = {
-    "tr": "tur_Latn",
-    "en": "eng_Latn",
-    "fa": "pes_Arab",
-    "ar": "arb_Arab",
+# Language name to LibreTranslate code mapping
+LANG_NAME_TO_CODE = {
+    "English": "en",
+    "Turkish": "tr",
+    "Persian": "fa",
+    "Arabic": "ar",
+}
+
+# Whisper language codes to LibreTranslate codes
+WHISPER_TO_LIBRETRANSLATE = {
+    "tr": "tr",
+    "en": "en",
+    "fa": "fa",
+    "ar": "ar",
 }
 
 # Whisper expects wav/float or a file path; we normalize via ffmpeg
@@ -96,8 +102,11 @@ async def transcribe_translate(
             task="transcribe",
             fp16=False,
         )
-        text = (result.get("text") or "").strip()
-        lang = (result.get("language") or "unknown").lower()
+        text_value = result.get("text", '')
+        text = text_value[0].strip() if isinstance(text_value, list) and text_value else str(text_value).strip()
+        
+        lang_value = result.get("language", "unknown")
+        lang = lang_value[0].lower() if isinstance(lang_value, list) and lang_value else str(lang_value).lower()
     except subprocess.CalledProcessError as e:
         raise HTTPException(500, f"Whisper execution failed: {e}")
     except Exception as e:
@@ -112,18 +121,30 @@ async def transcribe_translate(
     if not text:
         return TranscribeTranslateResp(transcript="", translation="", lang=lang)
 
-    # We assume SPM source model expects source tokens of the transcript language.
-    # For multi-lingual routing you can keep multiple SPM pairs and CT2 dirs and select per-request.
+    # Translate using LibreTranslate API
     try:
-        source_lang_code = BCP_TO_NLLB.get(lang)
-        if source_lang_code is None:
-            source_lang_code = BCP_TO_NLLB.get("en")
-        translated = await asyncio.to_thread(
-            translator.translate,
-            text,
-            target_lang=target_lang_code,
-            source_lang=source_lang_code,
+        source_lang_code = WHISPER_TO_LIBRETRANSLATE.get(lang, "en")
+        
+        # Call LibreTranslate API
+        response = await http_client.post(
+            f"{settings.LIBRETRANSLATE_URL}/translate",
+            json={
+                "q": text,
+                "source": source_lang_code,
+                "target": target_lang_code,
+                "format": "text",
+            },
+            headers={"Content-Type": "application/json"},
         )
+        
+        if response.status_code != 200:
+            raise HTTPException(500, f"LibreTranslate API error: {response.text}")
+        
+        result = response.json()
+        translated = result.get("translatedText", "")
+        
+    except httpx.HTTPError as e:
+        raise HTTPException(500, f"Translation API request failed: {e}")
     except Exception as e:
         raise HTTPException(500, f"Translation error: {e}")
 
