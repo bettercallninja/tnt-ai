@@ -157,3 +157,4 @@ async def transcribe_translate(
 
     lang_display = SUPPORTED_LANG_CODES.get(lang, lang)
     return TranscribeTranslateResp(transcript=text, translation=translated, lang=lang_display)
+

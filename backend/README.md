@@ -1,78 +1,75 @@
-# Backend Setup
+# TNT-AI Backend
+
+Speech-to-text transcription with translation powered by Whisper and LibreTranslate.
 
 ## Prerequisites
 - Python 3.11+
 - ffmpeg (for audio processing)
 - Docker & Docker Compose (recommended for LibreTranslate)
 
-## Installation
+## Quick Start
 
-1. **Create virtual environment and install dependencies**:
+### 1. Install Dependencies
 ```bash
 cd backend
 python -m venv .venv
-# On Windows:
+
+# Windows
 .venv\Scripts\activate
-# On Linux/Mac:
+
+# Linux/Mac
 source .venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-2. **Set up LibreTranslate (Translation Service)**:
+### 2. Start Services
 
-   **Option A - Docker (Recommended)**:
-   
-   *Windows (PowerShell):*
-   ```powershell
-   # Start LibreTranslate server
-   .\scripts\start-libretranslate.ps1
-   ```
-   
-   *Linux/Mac (Bash):*
-   ```bash
-   # Make script executable (first time only)
-   chmod +x scripts/start-libretranslate.sh
-   
-   # Start LibreTranslate server
-   ./scripts/start-libretranslate.sh
-   ```
-   
-   Or manually:
-   ```bash
-   docker-compose up -d libretranslate
-   ```
-   
-   **Option B - Python Package**:
-   ```powershell
-   pip install libretranslate
-   libretranslate --load-only en,tr,ar,fa --port 5000
-   ```
-   
-   See `README_LIBRETRANSLATE.md` for detailed setup instructions.
+**Easiest - Start Everything:**
+```powershell
+# Windows
+.\scripts\start-all.ps1
 
-3. **Configure environment variables** (optional):
-   ```powershell
-   # Copy example env file
-   copy .env.example .env
-   
-   # Edit .env as needed
-   ```
+# Linux/Mac
+chmod +x scripts/start-all.sh
+./scripts/start-all.sh
+```
 
-4. **Whisper models** will auto-download on first use to the cache directory.
-   - To use offline, place `.pt` files in `models/whisper/` and set `WHISPER_MODEL_DIR`
+**Or start services separately:**
 
-## Running
+Start LibreTranslate (translation service):
+```powershell
+# Windows
+.\scripts\start-libretranslate.ps1
 
-1. **Start LibreTranslate** (if not already running):
-   ```powershell
-   docker-compose up -d libretranslate
-   ```
+# Linux/Mac
+./scripts/start-libretranslate.sh
 
-2. **Start the backend API**:
-   ```powershell
-   uvicorn app:app --host 0.0.0.0 --port 8080 --reload
-   ```
+# Or manually
+docker-compose up -d libretranslate
+```
+
+Start Backend API:
+```powershell
+# Windows
+.\scripts\start-backend.ps1
+
+# Linux/Mac
+./scripts/start-backend.sh
+
+# Or manually (IMPORTANT: use venv Python!)
+& .venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8080 --reload
+```
+
+> ⚠️ **Important**: Don't run `python app.py` directly! FastAPI apps must be run with uvicorn from the virtual environment.
+
+### 3. Access the API
+
+Once running:
+- **API Docs**: http://localhost:8080/docs (Interactive Swagger UI)
+- **API**: http://localhost:8080
+- **ReDoc**: http://localhost:8080/redoc
+- **LibreTranslate**: http://localhost:5000
 
 ## Testing
 
@@ -116,6 +113,68 @@ Audio → Whisper (STT) → LibreTranslate API → Translated Text
 - Arabic (ar)
 - Persian/Farsi (fa)
 
-## Quick Start
+## LibreTranslate Setup Details
 
-See `QUICKSTART.md` for a quick reference guide.
+LibreTranslate provides the translation service. You can run it locally or use a remote instance.
+
+### Docker Setup (Recommended)
+
+The `docker-compose.yml` file is pre-configured with:
+- Only loads needed languages (en, tr, ar, fa) to save memory
+- Persistent model storage
+- Health checks
+- Optimized settings
+
+**Configuration options** in `docker-compose.yml`:
+- `LT_LOAD_ONLY`: Languages to load (reduces memory)
+- `LT_CHAR_LIMIT`: Max characters per request
+- `LT_THREADS`: Number of translation threads
+
+### Python Package Installation
+
+If you prefer not to use Docker:
+```bash
+pip install libretranslate
+libretranslate --load-only en,tr,ar,fa --port 5000
+```
+
+### Using Public API
+
+Set in `.env` file:
+```
+LIBRETRANSLATE_URL=https://libretranslate.com
+```
+
+Note: Public API has rate limits.
+
+## Troubleshooting
+
+### "ModuleNotFoundError: No module named 'whisper'"
+**Problem**: Running `python app.py` directly or using system Python  
+**Solution**: Use virtual environment Python with uvicorn:
+```powershell
+& .venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8080 --reload
+```
+
+### "LibreTranslate API error"
+**Problem**: LibreTranslate is not running  
+**Solution**: Start it first with `.\scripts\start-libretranslate.ps1`
+
+### Docker not starting
+- Ensure Docker Desktop is running
+- Check port 5000 is not in use
+- Check logs: `docker-compose logs libretranslate`
+
+### Out of memory with LibreTranslate
+- Reduce languages in `LT_LOAD_ONLY` in docker-compose.yml
+- Increase Docker memory limit in Docker Desktop settings
+- Use remote API instead of local instance
+
+## Scripts
+
+All helper scripts are in `backend/scripts/`:
+- `start-all.ps1/.sh` - Start everything (LibreTranslate + Backend)
+- `start-backend.ps1/.sh` - Start backend API only
+- `start-libretranslate.ps1/.sh` - Start LibreTranslate only
+
+See `scripts/README.md` for detailed script documentation.
