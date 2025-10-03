@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import whisper
 from settings import settings
 
-app = FastAPI(title="Offline STT + Translate")
+app = FastAPI(title="tnt-ai")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"], allow_credentials=True
@@ -125,15 +125,22 @@ async def transcribe_translate(
     try:
         source_lang_code = WHISPER_TO_LIBRETRANSLATE.get(lang, "en")
         
+        # Prepare request payload
+        payload = {
+            "q": text,
+            "source": source_lang_code,
+            "target": target_lang_code,
+            "format": "text",
+        }
+        
+        # Add API key if configured
+        if settings.LIBRETRANSLATE_API_KEY:
+            payload["api_key"] = settings.LIBRETRANSLATE_API_KEY
+        
         # Call LibreTranslate API
         response = await http_client.post(
             f"{settings.LIBRETRANSLATE_URL}/translate",
-            json={
-                "q": text,
-                "source": source_lang_code,
-                "target": target_lang_code,
-                "format": "text",
-            },
+            json=payload,
             headers={"Content-Type": "application/json"},
         )
         

@@ -13,7 +13,7 @@ class Settings(BaseModel):
 
 
     # LibreTranslate API
-    LIBRETRANSLATE_URL: str = os.getenv("LIBRETRANSLATE_URL", "https://libretranslate.com")
+    LIBRETRANSLATE_URL: str = os.getenv("LIBRETRANSLATE_URL", "http://localhost:5000")
     LIBRETRANSLATE_API_KEY: str = os.getenv("LIBRETRANSLATE_API_KEY", "")  # Optional, for authenticated instances
 
 
