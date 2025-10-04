@@ -2,6 +2,76 @@
 
 Speech-to-text transcription with translation powered by Whisper and LibreTranslate.
 
+---
+
+## 🚀 Quick Reference
+
+### First Time Setup
+```powershell
+# Windows
+.\scripts\start.ps1 -Mode first-run
+
+# Linux/Mac
+./scripts/start.sh first-run
+```
+
+### Start Development Server
+```powershell
+# Windows
+.\scripts\start.ps1 -Mode dev
+
+# Linux/Mac
+./scripts/start.sh dev
+```
+- 🔄 Auto-reload enabled
+- 📊 API: http://localhost:8080
+- 🌍 LibreTranslate: http://localhost:5000
+
+### Start Production Server
+```powershell
+# Windows
+.\scripts\start.ps1 -Mode prod
+
+# Linux/Mac
+./scripts/start.sh prod
+```
+- ⚡ Multiple workers (CPU cores)
+- 🚀 Optimized performance
+- 📉 Minimal logging
+
+### Stop Services
+```powershell
+# Windows
+.\scripts\stop.ps1              # Stop, keep data
+.\scripts\stop.ps1 -All         # Stop, remove all
+
+# Linux/Mac
+./scripts/stop.sh               # Stop, keep data
+./scripts/stop.sh --all         # Stop, remove all
+```
+
+### Test API
+```bash
+POST http://localhost:8080/v1/transcribe_translate
+
+Body (form-data):
+  file:        [audio file]
+  target_lang: Turkish | Persian | Arabic | English
+```
+
+### Whisper Models
+
+| Model  | Size  | Speed     | Accuracy      | Recommended |
+|--------|-------|-----------|---------------|-------------|
+| tiny   | 39M   | ⚡⚡⚡ Fast | ⭐ Basic      |             |
+| base   | 74M   | ⚡⚡ Faster| ⭐⭐ Good     |             |
+| small  | 244M  | ⚡ Fast    | ⭐⭐⭐ Better |             |
+| medium | 769M  | 🐌 Slow   | ⭐⭐⭐⭐ Great|             |
+| large  | 1550M | 🐌🐌 Slower| ⭐⭐⭐⭐⭐ Best|             |
+| **turbo** | **809M** | **⚡⚡ Fast** | **⭐⭐⭐⭐⭐ Best** | **✨ YES** |
+
+---
+
 ## Prerequisites
 - Python 3.11+
 - ffmpeg (for audio processing)

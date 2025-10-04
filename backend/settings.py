@@ -8,7 +8,7 @@ class Settings(BaseModel):
 
 
     # Whisper
-    WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "small") # tiny|base|small|medium|large-v3
+    WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "turbo") # tiny|base|small|medium|large|turbo-v3
     WHISPER_MODEL_DIR: str = os.getenv("WHISPER_MODEL_DIR", "models/whisper")
 
 

@@ -29,7 +29,7 @@ http_client = httpx.AsyncClient(timeout=30.0)
 class TranscribeTranslateResp(BaseModel):
     transcript: str
     translation: str
-    lang: str  # BCP-47-ish, e.g. "tr", "en", "fa"
+    source_lang: str  # BCP-47-ish, e.g. "tr", "en", "fa"
 
 SUPPORTED_LANG_CODES = {
     "ar": "Arabic", "en": "English", "fa": "Persian", "tr": "Turkish",
@@ -119,7 +119,7 @@ async def transcribe_translate(
                 pass
 
     if not text:
-        return TranscribeTranslateResp(transcript="", translation="", lang=lang)
+        return TranscribeTranslateResp(transcript="", translation="", source_lang=lang)
 
     # Translate using LibreTranslate API
     try:
@@ -156,5 +156,5 @@ async def transcribe_translate(
         raise HTTPException(500, f"Translation error: {e}")
 
     lang_display = SUPPORTED_LANG_CODES.get(lang, lang)
-    return TranscribeTranslateResp(transcript=text, translation=translated, lang=lang_display)
+    return TranscribeTranslateResp(transcript=text, translation=translated, source_lang=lang_display)
 
