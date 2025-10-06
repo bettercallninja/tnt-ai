@@ -30,9 +30,9 @@ export const recordSpeech = async (
         const recordingOptions = {
           ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
           android: {
-            extension: ".amr",
-            outputFormat: Audio.AndroidOutputFormat.AMR_WB,
-            audioEncoder: Audio.AndroidAudioEncoder.AMR_WB,
+            extension: ".wav",
+            outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+            audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
             sampleRate: 16000,
             numberOfChannels: 1,
             bitRate: 128000,
@@ -40,7 +40,7 @@ export const recordSpeech = async (
           ios: {
             extension: ".wav",
             audioQuality: Audio.IOSAudioQuality.HIGH,
-            sampleRate: 44100,
+            sampleRate: 16000,  // Match Android for consistency
             numberOfChannels: 1,
             bitRate: 128000,
             linearPCMBitDepth: 16,

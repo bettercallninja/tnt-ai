@@ -54,18 +54,39 @@ WHISPER_TO_LIBRETRANSLATE = {
 # Whisper expects wav/float or a file path; we normalize via ffmpeg
 
 def to_wav(input_bytes: bytes) -> bytes:
+    """Convert any audio format to 16kHz mono WAV using ffmpeg."""
     with tempfile.NamedTemporaryFile(suffix=".in", delete=False) as fin:
         fin.write(input_bytes)
         fin.flush()
         in_path = fin.name
     out_path = in_path + ".wav"
     try:
-        subprocess.run(
-            ["ffmpeg", "-y", "-i", in_path, "-ac", "1", "-ar", "16000", out_path],
-            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        # Convert to 16kHz mono WAV (Whisper's preferred format)
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y", "-i", in_path,
+                "-ac", "1",           # Mono
+                "-ar", "16000",       # 16kHz sample rate
+                "-acodec", "pcm_s16le",  # 16-bit PCM
+                "-f", "wav",          # WAV format
+                out_path
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=10  # 10 second timeout
         )
+        
+        if not os.path.exists(out_path):
+            raise Exception("FFmpeg did not create output WAV file")
+        
         with open(out_path, "rb") as f:
-            return f.read()
+            wav_data = f.read()
+        
+        if len(wav_data) < 1000:
+            raise Exception("Converted WAV file is too small")
+        
+        return wav_data
     finally:
         for p in (in_path, out_path):
             try: os.remove(p)
@@ -80,14 +101,31 @@ async def transcribe_translate(
     if target_lang not in LANG_NAME_TO_CODE:
         raise HTTPException(400, f"Unsupported target_lang: {target_lang}")
     target_lang_code = LANG_NAME_TO_CODE[target_lang]
+    
+    # Log incoming file info
+    print(f"📥 Received file: {file.filename}, Content-Type: {file.content_type}")
+    
     try:
         raw = await file.read()
+        print(f"📦 File size: {len(raw) / 1024:.2f} KB")
+        
+        # Validate minimum file size
+        if len(raw) < 1000:
+            raise HTTPException(400, "Audio file too small - recording may be empty")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(400, f"Invalid upload: {e}")
 
     try:
+        print(f"🔄 Converting to WAV format (16kHz, mono)...")
         wav = await asyncio.to_thread(to_wav, raw)
+        print(f"✅ WAV conversion successful: {len(wav) / 1024:.2f} KB")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ FFmpeg error: {e.stderr}")
+        raise HTTPException(500, f"Audio conversion failed - ensure file is valid audio format")
     except Exception as e:
+        print(f"❌ Conversion error: {e}")
         raise HTTPException(500, f"Audio normalization failed: {e}")
 
     wav_path: Optional[str] = None
